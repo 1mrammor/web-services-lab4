@@ -1,0 +1,35 @@
+name: test and deploy
+
+# запускаем на каждый push и на pull request
+on: [push, pull_request]
+
+jobs:
+  # шаг 1: гоним тесты
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Забираем код
+        uses: actions/checkout@v4
+
+      - name: Ставим Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pytest и httpx нужны только для тестов, на render они не нужны
+      - name: Ставим зависимости
+        run: pip install -r requirements.txt pytest httpx
+
+      - name: Запускаем тесты
+        run: python -m pytest -v
+
+  # шаг 2: деплой, стартует только если test прошел успешно
+  deploy:
+    needs: test
+    # деплоим только при push в master (на pull request не надо)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      # Deploy Hook - секретная ссылка из render, дергаем её и render начинает деплой
+      - name: Дергаем Render Deploy Hook
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
