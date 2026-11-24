@@ -26,8 +26,8 @@ jobs:
   # шаг 2: деплой, стартует только если test прошел успешно
   deploy:
     needs: test
-    # деплоим только при push в master (на pull request не надо)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # деплоим только при push в main (на pull request не надо)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       # Deploy Hook - секретная ссылка из render, дергаем её и render начинает деплой
