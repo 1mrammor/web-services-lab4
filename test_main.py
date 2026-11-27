@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 
-# TestClient дергает приложение напрямую, сервер поднимать не надо
+# регистрируем тестового клиента, чтобы можно было делать запросы к API без поднятия сервера
 client = TestClient(app)
 
 

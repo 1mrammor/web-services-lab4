@@ -4,11 +4,9 @@ from typing import List, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-# ---------------------------------------------------------------
+
 # Лаба 4, вариант 5: Рынок автомобилей
-# Простой REST API: хранение в SQLite, документация Swagger сама
-# появляется по адресу /docs
-# ---------------------------------------------------------------
+# Простой REST API: хранение в SQLite, swagger по /docs + crud
 
 app = FastAPI(
     title="Рынок автомобилей",
@@ -25,12 +23,10 @@ SORT_FIELDS = Literal["id", "brand", "model", "color", "year", "price", "mileage
 NUM_FIELDS = ["year", "price", "mileage", "power"]
 
 
-# ---------- работа с БД ----------
+# работа с БД 
 
 def get_conn():
-    # новое подключение на каждый запрос, так проще всего
     conn = sqlite3.connect(DB_NAME)
-    # чтобы строки можно было превращать в словари
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -74,7 +70,7 @@ def init_db():
 init_db()
 
 
-# ---------- модели данных (pydantic сам проверяет что пришло) ----------
+# модели данных (pydantic сам проверяет что пришло)
 
 class CarIn(BaseModel):
     """Что присылает клиент (без id, его даёт база)"""
@@ -92,20 +88,16 @@ class Car(CarIn):
     id: int
 
 
-# ---------- ручки API ----------
+# CRUD
 
 @app.get("/cars", response_model=List[Car], summary="Список авто с сортировкой")
 def get_cars(sort_by: SORT_FIELDS = "id", order: Literal["asc", "desc"] = "asc"):
-    # sort_by и order можно вставлять в SQL напрямую, потому что
-    # Literal пропустит только значения из списка выше (защита от инъекций)
     conn = get_conn()
     rows = conn.execute(f"SELECT * FROM cars ORDER BY {sort_by} {order}").fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-# ВАЖНО: /cars/stats должна быть выше чем /cars/{car_id},
-# иначе слово "stats" fastapi попытается принять за id
 @app.get("/cars/stats", summary="Среднее, мин и макс по числовым полям")
 def get_stats():
     conn = get_conn()
