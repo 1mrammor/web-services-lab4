@@ -2,7 +2,7 @@ import sqlite3
 from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # Лаба 4, вариант 5: Рынок автомобилей
@@ -88,6 +88,17 @@ class Car(CarIn):
     id: int
 
 
+class CarPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    brand: str | None = Field(default=None, description="Марка", examples=["Toyota"])
+    model: str | None = Field(default=None, description="Модель", examples=["Camry"])
+    color: str | None = Field(default=None, description="Цвет", examples=["black"])
+    year: int | None = Field(default=None, ge=1900, le=2100, description="Год выпуска", examples=[2018])
+    price: float | None = Field(default=None, gt=0, description="Цена, руб", examples=[1900000])
+    mileage: int | None = Field(default=None, ge=0, description="Пробег, км", examples=[85000])
+    power: int | None = Field(default=None, gt=0, description="Мощность, л.с.", examples=[181])
+
 # CRUD
 
 @app.get("/cars", response_model=List[Car], summary="Список авто с сортировкой")
@@ -149,6 +160,24 @@ def update_car(car_id: int, car: CarIn):
     if cur.rowcount == 0:
         raise HTTPException(status_code=404, detail="Машина не найдена")
     return {"id": car_id, **car.model_dump()}
+
+
+@app.patch("/cars/{car_id}", response_model=Car, summary="Частично обновить машину по id")
+def patch_car(car_id: int, car: CarPatch):
+    changes = car.model_dump(exclude_unset=True, exclude_none=True)
+    conn = get_conn()
+    if changes:
+        assignments = ", ".join(f"{field} = ?" for field in changes)
+        conn.execute(
+            f"UPDATE cars SET {assignments} WHERE id = ?",
+            (*changes.values(), car_id),
+        )
+        conn.commit()
+    row = conn.execute("SELECT * FROM cars WHERE id = ?", (car_id,)).fetchone()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Машина не найдена")
+    return dict(row)
 
 
 @app.delete("/cars/{car_id}", summary="Удалить машину по id")
